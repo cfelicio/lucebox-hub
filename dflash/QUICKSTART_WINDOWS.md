@@ -43,15 +43,27 @@ dflash-windows/
 
 ## Step 0: Prerequisites
 
-```powershell
-# Python 3.10+ with pip
-python --version
+You need:
+- **Python 3.10+** ([python.org/downloads](https://www.python.org/downloads/))
+- **NVIDIA GPU** with CUDA drivers installed (`nvidia-smi` should work)
 
-# Install Python dependencies
+### Set up a virtual environment
+
+```powershell
+# Create venv (run from the dflash-windows folder)
+python -m venv .venv
+
+# Activate it
+.venv\Scripts\Activate.ps1
+
+# Install all Python dependencies
 pip install transformers huggingface-hub fastapi uvicorn jinja2
 ```
 
-You need an NVIDIA GPU with CUDA drivers installed (RTX 3090 or RTX 4090).
+> **Note:** Every time you open a new terminal, activate the venv first:
+> ```powershell
+> .venv\Scripts\Activate.ps1
+> ```
 
 ---
 
@@ -194,23 +206,59 @@ python scripts/server.py --bin bin/test_dflash.exe --fa-window 0
 
 ## Qwen3.6-27B (your current model, supported!)
 
-If you're currently using Qwen3.6-27B with llama.cpp, DFlash supports it as a drop-in target:
+If you're currently using Qwen3.6-27B with llama.cpp, DFlash supports it as a drop-in target.
+
+### Full setup (copy-paste into PowerShell)
 
 ```powershell
-# Download Qwen3.6-27B Q4_K_M target
+# ── 1. Activate venv ──
+.venv\Scripts\Activate.ps1
+
+# ── 2. Download models ──
+# Target: Qwen3.6-27B Q4_K_M (~16 GB)
 huggingface-cli download unsloth/Qwen3.6-27B-GGUF Qwen3.6-27B-Q4_K_M.gguf --local-dir models/
 
-# Download matched draft (still training, but works)
+# Draft: matched DFlash draft (~3.5 GB, still training but works)
 huggingface-cli download z-lab/Qwen3.6-27B-DFlash model.safetensors --local-dir models/draft/
 
-# Run with explicit target path
-python scripts/server.py --bin bin/test_dflash.exe --target models/Qwen3.6-27B-Q4_K_M.gguf
-
-# Or for one-shot
-python scripts/run.py --prompt "hello" --target models/Qwen3.6-27B-Q4_K_M.gguf --bin bin/test_dflash.exe
+# ── 3. Run the server (max performance for RTX 3090) ──
+python scripts/server.py `
+  --bin bin/test_dflash.exe `
+  --target models/Qwen3.6-27B-Q4_K_M.gguf `
+  --draft models/draft `
+  --budget 22 `
+  --ctk tq3_0 --ctv tq3_0 `
+  --max-ctx 16384 `
+  --port 8080
 ```
 
-> **Note:** Qwen3.6 throughput is lower than 3.5 (~70 tok/s vs 130 tok/s) because the DFlash draft is still being trained for 3.6. Still 2× faster than autoregressive.
+The server is now running at `http://localhost:8080`. Connect Open WebUI, Cline, or any OpenAI client:
+```
+API Base: http://localhost:8080/v1
+API Key:  sk-any
+Model:    luce-dflash
+```
+
+### One-shot generation
+
+```powershell
+python scripts/run.py `
+  --prompt "Write a Python function that sorts a list" `
+  --target models/Qwen3.6-27B-Q4_K_M.gguf `
+  --bin bin/test_dflash.exe `
+  --n-gen 512
+```
+
+### Max performance flags explained
+
+| Flag | What it does | Why |
+|---|---|---|
+| `--budget 22` | DDTree verify with 22-node tree | Sweet spot for RTX 3090 + Q4_K_M (diminishing returns beyond 22) |
+| `--ctk tq3_0 --ctv tq3_0` | TurboQuant 3.5 bpv KV cache | Fits longer context in 24 GB, near-lossless quality |
+| `--max-ctx 16384` | 16K context window | Fits most API workloads; don't oversize (attention scales with this) |
+| `--port 8080` | Server port | Match your client config |
+
+> **Note:** Qwen3.6 throughput is ~70 tok/s vs 130 tok/s on 3.5 — the DFlash draft is still being trained for 3.6. Still **2× faster than autoregressive** (35 tok/s).
 
 ---
 
