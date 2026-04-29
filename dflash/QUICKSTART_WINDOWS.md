@@ -70,11 +70,11 @@ pip install transformers huggingface-hub fastapi uvicorn jinja2
 ## Step 1: Download models (~20 GB)
 
 ```powershell
-# Target model: Qwen3.5-27B Q4_K_M (~16 GB)
-huggingface-cli download unsloth/Qwen3.5-27B-GGUF Qwen3.5-27B-Q4_K_M.gguf --local-dir models/
+# Target model: Qwen3.6-27B Q4_K_M (~16 GB)
+hf download unsloth/Qwen3.6-27B-GGUF Qwen3.6-27B-Q4_K_M.gguf --local-dir models/
 
 # Draft model: z-lab DFlash BF16 (~3.5 GB)
-huggingface-cli download z-lab/Qwen3.5-27B-DFlash model.safetensors --local-dir models/draft/
+hf download z-lab/Qwen3.6-27B-DFlash model.safetensors --local-dir models/draft/
 ```
 
 After downloading, your directory should look like:
@@ -83,7 +83,7 @@ dflash-windows/
 ├── bin/
 ├── scripts/
 ├── models/
-│   ├── Qwen3.5-27B-Q4_K_M.gguf
+│   ├── Qwen3.6-27B-Q4_K_M.gguf
 │   └── draft/
 │       └── model.safetensors
 └── ...
@@ -96,17 +96,17 @@ dflash-windows/
 ### Option A: One-shot generation (equivalent to `llama-cli`)
 
 ```powershell
-python scripts/run.py --prompt "def fibonacci(n):" --bin bin/test_dflash.exe
+python scripts/run.py --prompt "def fibonacci(n):" --bin bin/test_dflash.exe --target models/Qwen3.6-27B-Q4_K_M.gguf
 ```
 
 With system prompt:
 ```powershell
-python scripts/run.py --prompt "Explain quantum computing" --system "You are a concise physics tutor." --bin bin/test_dflash.exe
+python scripts/run.py --prompt "Explain quantum computing" --system "You are a concise physics tutor." --bin bin/test_dflash.exe --target models/Qwen3.6-27B-Q4_K_M.gguf
 ```
 
 Generate more tokens:
 ```powershell
-python scripts/run.py --prompt "Write a short story about AI" --n-gen 512 --bin bin/test_dflash.exe
+python scripts/run.py --prompt "Write a short story about AI" --n-gen 512 --bin bin/test_dflash.exe --target models/Qwen3.6-27B-Q4_K_M.gguf
 ```
 
 ### Option B: OpenAI-compatible HTTP server (equivalent to `llama-server`)
@@ -118,7 +118,7 @@ This is the direct equivalent of your llama-server command:
 #   .\llama-server.exe --model Qwen3.6-27B-UD-Q4_K_XL.gguf --temp 0.6 --cache-type-k turbo4 --cache-type-v turbo4
 #
 # DFlash equivalent:
-python scripts/server.py --bin bin/test_dflash.exe --port 8080
+python scripts/server.py --bin bin/test_dflash.exe --target models/Qwen3.6-27B-Q4_K_M.gguf --port 8080
 ```
 
 The server is now running at `http://localhost:8080`. Use it with:
@@ -216,10 +216,10 @@ If you're currently using Qwen3.6-27B with llama.cpp, DFlash supports it as a dr
 
 # ── 2. Download models ──
 # Target: Qwen3.6-27B Q4_K_M (~16 GB)
-huggingface-cli download unsloth/Qwen3.6-27B-GGUF Qwen3.6-27B-Q4_K_M.gguf --local-dir models/
+hf download unsloth/Qwen3.6-27B-GGUF Qwen3.6-27B-Q4_K_M.gguf --local-dir models/
 
 # Draft: matched DFlash draft (~3.5 GB, still training but works)
-huggingface-cli download z-lab/Qwen3.6-27B-DFlash model.safetensors --local-dir models/draft/
+hf download z-lab/Qwen3.6-27B-DFlash model.safetensors --local-dir models/draft/
 
 # ── 3. Run the server (max performance for RTX 3090) ──
 python scripts/server.py `

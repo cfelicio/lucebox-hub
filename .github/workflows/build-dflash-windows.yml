@@ -157,15 +157,17 @@ jobs:
             ### Quick start
 
             1. Unzip `dflash-windows.zip`
-            2. Download models:
+            2. Set up Python environment and download models:
                ```
-               pip install huggingface-hub
-               huggingface-cli download unsloth/Qwen3.5-27B-GGUF Qwen3.5-27B-Q4_K_M.gguf --local-dir models/
-               huggingface-cli download z-lab/Qwen3.5-27B-DFlash model.safetensors --local-dir models/draft/
+               python -m venv .venv
+               .venv\Scripts\Activate.ps1
+               pip install transformers huggingface-hub fastapi uvicorn jinja2
+               hf download unsloth/Qwen3.6-27B-GGUF Qwen3.6-27B-Q4_K_M.gguf --local-dir models/
+               hf download z-lab/Qwen3.6-27B-DFlash model.safetensors --local-dir models/draft/
                ```
             3. Run:
                ```
-               python scripts/run.py --prompt "def fibonacci(n):" --bin bin/test_dflash.exe
+               python scripts/server.py --bin bin/test_dflash.exe --target models/Qwen3.6-27B-Q4_K_M.gguf --port 8080
                ```
 
             ### What's inside
