@@ -2,6 +2,12 @@ name: Build DFlash Native Windows
 
 on:
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a GitHub Release with the build'
+        required: false
+        default: 'true'
+        type: boolean
   push:
     branches: [main]
     paths:
@@ -12,6 +18,9 @@ on:
     paths:
       - 'dflash/**'
       - '.github/workflows/build-dflash-windows.yml'
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -80,12 +89,98 @@ jobs:
           dir /s /b dflash\build\*.exe
           dir /s /b dflash\build\*.dll
 
-      - name: Upload DFlash Binaries
+      # ── Package a self-contained release directory ───────────────────
+      # Layout:
+      #   dflash-windows/
+      #   ├── bin/          executables + all DLLs (flat, no DLL search issues)
+      #   ├── scripts/      Python helpers (run.py, server.py, bench_llm.py, …)
+      #   ├── examples/     chat.py
+      #   └── README.md
+      - name: Assemble Release Package
+        shell: pwsh
+        run: |
+          $pkg = "dflash-windows"
+          New-Item -ItemType Directory -Force "$pkg/bin"
+
+          # Executables
+          Copy-Item dflash/build/*.exe "$pkg/bin/"
+
+          # DLLs: ggml-base, ggml-cuda, ggml-cpu, ggml (loader)
+          Get-ChildItem -Recurse dflash/build -Filter *.dll | Copy-Item -Destination "$pkg/bin/"
+
+          # Python scripts and examples
+          Copy-Item -Recurse dflash/scripts "$pkg/scripts"
+          Copy-Item -Recurse dflash/examples "$pkg/examples"
+
+          # Documentation
+          Copy-Item dflash/README.md "$pkg/"
+          Copy-Item dflash/RESULTS.md "$pkg/"
+
+          Write-Host "=== Release package contents ==="
+          Get-ChildItem -Recurse $pkg | ForEach-Object { $_.FullName }
+
+          # Zip for release
+          Compress-Archive -Path "$pkg/*" -DestinationPath "$pkg.zip" -Force
+
+      - name: Upload Artifact (expires in 14 days)
         uses: actions/upload-artifact@v4
         with:
           name: dflash-windows-sm86-sm89-avx2
-          path: |
-            dflash/build/*.exe
-            dflash/build/*.dll
-            dflash/build/deps/**/*.dll
+          path: dflash-windows/
           retention-days: 14
+
+      # ── GitHub Release (permanent, on workflow_dispatch) ─────────────
+      - name: Generate Release Tag
+        if: github.event_name == 'workflow_dispatch' && inputs.create_release == 'true'
+        id: tag
+        shell: pwsh
+        run: |
+          $tag = "dflash-win-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          echo "Generated release tag: $tag"
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch' && inputs.create_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "DFlash Windows Build (${{ steps.tag.outputs.tag }})"
+          body: |
+            ## DFlash Windows Build
+
+            **CUDA architectures:** sm_86 (RTX 3090) + sm_89 (RTX 4090)
+            **CPU ISA:** AVX2 + FMA + F16C (Zen 3+ / Intel 4th gen+)
+            **CUDA toolkit:** 12.6.3
+            **Commit:** ${{ github.sha }}
+
+            ### Quick start
+
+            1. Unzip `dflash-windows.zip`
+            2. Download models:
+               ```
+               pip install huggingface-hub
+               huggingface-cli download unsloth/Qwen3.5-27B-GGUF Qwen3.5-27B-Q4_K_M.gguf --local-dir models/
+               huggingface-cli download z-lab/Qwen3.5-27B-DFlash model.safetensors --local-dir models/draft/
+               ```
+            3. Run:
+               ```
+               python scripts/run.py --prompt "def fibonacci(n):" --bin bin/test_dflash.exe
+               ```
+
+            ### What's inside
+
+            | File | Purpose |
+            |------|---------|
+            | `bin/test_dflash.exe` | DFlash speculative decoder (DDTree, TurboQuant, server mode) |
+            | `bin/test_generate.exe` | Standalone autoregressive decoder |
+            | `bin/*.dll` | ggml runtime (CUDA, CPU backends) |
+            | `scripts/run.py` | Streaming one-shot generation |
+            | `scripts/server.py` | OpenAI-compatible HTTP server |
+            | `scripts/bench_llm.py` | Reproduce paper benchmarks |
+            | `examples/chat.py` | Multi-turn chat REPL |
+
+            See [README.md](https://github.com/${{ github.repository }}/tree/main/dflash) for full documentation.
+          files: dflash-windows.zip
+          draft: false
+          prerelease: false
+          make_latest: true
