@@ -287,19 +287,40 @@ python scripts/run.py `
 
 ## Troubleshooting
 
-### "DLL not found" errors
-Make sure the `bin/` directory is in your PATH, or run from the `dflash-windows/` directory:
-```powershell
-$env:PATH = "$(Get-Location)\bin;$env:PATH"
+### "DLL not found" or silent crash (exit code 0xC0000135)
+
+DFlash needs CUDA runtime DLLs that are **not** included in the release. If you already have llama.cpp installed, copy these DLLs from your llama.cpp folder into the DFlash `bin/` folder (or wherever `test_dflash.exe` lives):
+
 ```
+cudart64_12.dll
+cublas64_12.dll
+cublasLt64_12.dll
+```
+
+```powershell
+# Example: copy from llama.cpp release folder
+Copy-Item "C:\path\to\llama-cpp\cudart64_12.dll" bin/
+Copy-Item "C:\path\to\llama-cpp\cublas64_12.dll" bin/
+Copy-Item "C:\path\to\llama-cpp\cublasLt64_12.dll" bin/
+```
+
+> **Tip:** If you don't have llama.cpp, install the [CUDA Toolkit 12.6](https://developer.nvidia.com/cuda-downloads) — the DLLs will be in `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\bin\`.
 
 ### "CUDA error" at startup
 - Verify NVIDIA drivers are installed: `nvidia-smi`
-- DFlash requires CUDA-capable GPU (RTX 3090/4090)
+- DFlash requires an NVIDIA GPU (RTX 3090/4090 or newer)
 
 ### "target GGUF not found"
 - Download models first (Step 1)
-- Check the `models/` directory is next to `bin/` and `scripts/`
+- Use the exact filename from your `models/` directory (e.g. `Qwen3.6-27B-UD-Q4_K_XL.gguf`)
+
+### "generated 0 tokens"
+- Usually means `test_dflash.exe` crashed silently due to missing CUDA DLLs (see above)
+- Check that you have a draft model at `models/draft/model.safetensors`
+
+### Server returns 404
+- The API is at `/v1/chat/completions`, not `/`. Don't browse to `http://localhost:8080/` directly.
+- Use `/v1/models` to verify the server is running
 
 ### Server hangs on first request
 - First request loads both models (~10s). Subsequent requests are instant (daemon mode).
