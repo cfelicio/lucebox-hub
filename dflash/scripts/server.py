@@ -121,7 +121,8 @@ class AnthropicMessagesRequest(BaseModel):
 
 
 def build_app(target: Path, draft: Path, bin_path: Path, budget: int, max_ctx: int,
-              tokenizer: AutoTokenizer, stop_ids: set[int]) -> FastAPI:
+              tokenizer: AutoTokenizer, stop_ids: set[int],
+              enable_thinking: bool = False) -> FastAPI:
     import asyncio
     app = FastAPI(title="Luce DFlash OpenAI server")
     daemon_lock = asyncio.Lock()
@@ -164,7 +165,8 @@ def build_app(target: Path, draft: Path, bin_path: Path, budget: int, max_ctx: i
                  if isinstance(m.content, list) else m.content}
                 for m in req.messages]
         prompt = tokenizer.apply_chat_template(
-            msgs, tokenize=False, add_generation_prompt=True)
+            msgs, tokenize=False, add_generation_prompt=True,
+            enable_thinking=enable_thinking)
         ids = tokenizer.encode(prompt, add_special_tokens=False)
         # mkstemp returns (fd, path). The previous code kept only the
         # path and discarded fd, leaking 1 file descriptor per request.
@@ -300,7 +302,8 @@ def build_app(target: Path, draft: Path, bin_path: Path, budget: int, max_ctx: i
             msgs.append({"role": m.role,
                          "content": _anthropic_text_from_content(m.content)})
         prompt = tokenizer.apply_chat_template(
-            msgs, tokenize=False, add_generation_prompt=True)
+            msgs, tokenize=False, add_generation_prompt=True,
+            enable_thinking=enable_thinking)
         ids = tokenizer.encode(prompt, add_special_tokens=False)
         # mkstemp returns (fd, path); discarding fd leaks 1 per request (#15).
         fd, path = tempfile.mkstemp(suffix=".bin")
@@ -462,6 +465,9 @@ def main():
     ap.add_argument("--tokenizer", type=str, default=None,
                     help="HuggingFace tokenizer repo ID (default: auto-detect "
                          "from target GGUF basename; falls back to Qwen/Qwen3.5-27B)")
+    ap.add_argument("--enable-thinking", action="store_true",
+                    help="Enable Qwen3 thinking mode (wraps reasoning in <think>...</think>). "
+                         "Recommended for complex tasks; uses more tokens.")
     ap.add_argument("--daemon", action="store_true", help="Run with persistent model daemon (now default)")
     args = ap.parse_args()
 
@@ -495,7 +501,8 @@ def main():
         if ids: stop_ids.add(ids[0])
 
     app = build_app(args.target, draft, args.bin, args.budget, args.max_ctx,
-                    tokenizer, stop_ids)
+                    tokenizer, stop_ids,
+                    enable_thinking=args.enable_thinking)
 
     import uvicorn
     print(f"Luce DFlash OpenAI server on http://{args.host}:{args.port}")

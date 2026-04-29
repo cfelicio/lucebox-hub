@@ -83,6 +83,9 @@ def main():
                          "value much larger than needed (e.g. 131072 on a "
                          "16K prompt) massively degrades attention speed "
                          "because the kernel strides over unused KV.")
+    ap.add_argument("--enable-thinking", action="store_true",
+                    help="Enable Qwen3 thinking mode (wraps reasoning in "
+                         "<think>...</think>). Uses more tokens.")
     args = ap.parse_args()
 
     prompt_text = args.prompt if args.prompt else sys.stdin.read().strip()
@@ -101,7 +104,8 @@ def main():
             msgs.append({"role": "system", "content": args.system})
         msgs.append({"role": "user", "content": prompt_text})
         text = tokenizer.apply_chat_template(msgs, tokenize=False,
-                                             add_generation_prompt=True)
+                                             add_generation_prompt=True,
+                                             enable_thinking=args.enable_thinking)
 
     draft_path = resolve_draft(args.draft)
     im_end_id = tokenizer.encode("<|im_end|>", add_special_tokens=False)
