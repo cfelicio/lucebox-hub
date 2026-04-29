@@ -1,0 +1,87 @@
+name: Build DFlash Native Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'dflash/**'
+      - '.github/workflows/build-dflash-windows.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dflash/**'
+      - '.github/workflows/build-dflash-windows.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install CUDA Toolkit
+        uses: Jimver/cuda-toolkit@v0.2.35
+        id: cuda-toolkit
+        with:
+          cuda: '12.8.0'
+          method: network
+
+      - name: Verify CUDA Install
+        shell: cmd
+        run: nvcc --version
+
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@master
+        with:
+          version: 1.11.1
+
+      # ── Configure ────────────────────────────────────────────────────
+      # Target hardware:
+      #   GPU: RTX 3090 (sm_86), also fat-binary for 4090 (sm_89) and 5090 (sm_120)
+      #   CPU: Ryzen 5800X (Zen 3) — AVX2 + FMA + F16C, no AVX-512
+      #
+      # GGML_CUDA_FA_ALL_QUANTS is force-set ON in CMakeLists.txt (line 45)
+      # for asymmetric KV-quant (TurboQuant TQ3_0 / Q4_0 paths).
+      # OpenMP is auto-detected by CMake for the DDTree parallel top-K path.
+      - name: Configure CMake
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd dflash
+          cmake -B build -S . -G Ninja ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_C_COMPILER=cl ^
+            -DCMAKE_CXX_COMPILER=cl ^
+            -DCMAKE_CUDA_ARCHITECTURES="86;89;120" ^
+            -DGGML_CUDA=ON ^
+            -DGGML_AVX2=ON ^
+            -DGGML_AVX512=OFF ^
+            -DGGML_FMA=ON ^
+            -DGGML_F16C=ON
+
+      - name: Build DFlash
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd dflash
+          cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
+
+      - name: List Build Outputs
+        shell: cmd
+        run: |
+          dir /s /b dflash\build\*.exe
+          dir /s /b dflash\build\*.dll
+
+      - name: Upload DFlash Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: dflash-windows-avx2-cuda
+          path: |
+            dflash/build/*.exe
+            dflash/build/*.dll
+            dflash/build/deps/**/*.dll
+          retention-days: 14
