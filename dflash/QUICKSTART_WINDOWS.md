@@ -229,6 +229,7 @@ python scripts/server.py `
   --budget 22 `
   --ctk tq3_0 --ctv tq3_0 `
   --max-ctx 16384 `
+  --enable-thinking `
   --port 8080
 ```
 
@@ -256,6 +257,7 @@ python scripts/run.py `
 | `--budget 22` | DDTree verify with 22-node tree | Sweet spot for RTX 3090 + Q4_K_M (diminishing returns beyond 22) |
 | `--ctk tq3_0 --ctv tq3_0` | TurboQuant 3.5 bpv KV cache | Fits longer context in 24 GB, near-lossless quality |
 | `--max-ctx 16384` | 16K context window | Fits most API workloads; don't oversize (attention scales with this) |
+| `--enable-thinking` | Qwen3 thinking mode | Model reasons in `<think>` blocks before answering; better quality on complex tasks |
 | `--port 8080` | Server port | Match your client config |
 
 > **Note:** Qwen3.6 throughput is ~70 tok/s vs 130 tok/s on 3.5 — the DFlash draft is still being trained for 3.6. Still **2× faster than autoregressive** (35 tok/s).
