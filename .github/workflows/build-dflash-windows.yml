@@ -27,7 +27,7 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.35
         id: cuda-toolkit
         with:
-          cuda: '12.8.0'
+          cuda: '12.6.3'
           method: network
 
       - name: Verify CUDA Install
@@ -41,8 +41,11 @@ jobs:
 
       # ── Configure ────────────────────────────────────────────────────
       # Target hardware:
-      #   GPU: RTX 3090 (sm_86), also fat-binary for 4090 (sm_89) and 5090 (sm_120)
+      #   GPU: RTX 3090 (sm_86) + RTX 4090 (sm_89), native cubins for both
       #   CPU: Ryzen 5800X (Zen 3) — AVX2 + FMA + F16C, no AVX-512
+      #
+      # NOTE: sm_120 (Blackwell/5090) omitted — the pinned llama.cpp fork's
+      # ggml-cuda hits ptxas failures on sm_120. Re-add once upstream fixes land.
       #
       # GGML_CUDA_FA_ALL_QUANTS is force-set ON in CMakeLists.txt (line 45)
       # for asymmetric KV-quant (TurboQuant TQ3_0 / Q4_0 paths).
@@ -56,7 +59,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release ^
             -DCMAKE_C_COMPILER=cl ^
             -DCMAKE_CXX_COMPILER=cl ^
-            -DCMAKE_CUDA_ARCHITECTURES="86;89;120" ^
+            -DCMAKE_CUDA_ARCHITECTURES="86;89" ^
             -DGGML_CUDA=ON ^
             -DGGML_AVX2=ON ^
             -DGGML_AVX512=OFF ^
@@ -79,7 +82,7 @@ jobs:
       - name: Upload DFlash Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: dflash-windows-avx2-cuda
+          name: dflash-windows-sm86-sm89-avx2
           path: |
             dflash/build/*.exe
             dflash/build/*.dll
