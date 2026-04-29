@@ -13,6 +13,16 @@
 #include <cstdlib>
 #include <cstring>
 
+// ─── platform shim (MSVC lacks POSIX setenv/unsetenv) ───────────────────────
+#ifdef _WIN32
+static int setenv(const char *name, const char *value, int /*overwrite*/) {
+    return _putenv_s(name, value);
+}
+static int unsetenv(const char *name) {
+    return _putenv_s(name, "");
+}
+#endif
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 static void clear_kv_env() {

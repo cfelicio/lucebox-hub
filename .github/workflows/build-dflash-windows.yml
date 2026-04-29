@@ -60,6 +60,7 @@ jobs:
             -DCMAKE_C_COMPILER=cl ^
             -DCMAKE_CXX_COMPILER=cl ^
             -DCMAKE_CUDA_ARCHITECTURES="86;89" ^
+            -DCMAKE_CUDA_FLAGS="-diag-suppress=177,221" ^
             -DGGML_CUDA=ON ^
             -DGGML_AVX2=ON ^
             -DGGML_AVX512=OFF ^
