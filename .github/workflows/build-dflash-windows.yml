@@ -115,6 +115,7 @@ jobs:
           # Documentation
           Copy-Item dflash/README.md "$pkg/"
           Copy-Item dflash/RESULTS.md "$pkg/"
+          Copy-Item dflash/QUICKSTART_WINDOWS.md "$pkg/"
 
           Write-Host "=== Release package contents ==="
           Get-ChildItem -Recurse $pkg | ForEach-Object { $_.FullName }
