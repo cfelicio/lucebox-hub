@@ -73,6 +73,8 @@ extern "C" void dflash27b_launch_bf16_to_f32(const void * src,
 #include <unordered_map>
 #include <vector>
 
+#include "compat.h"
+
 using namespace dflash27b;
 
 // ─── Small utilities ──────────────────────────────────────────────

@@ -29,6 +29,8 @@
 #include <fstream>
 #include <vector>
 
+#include "compat.h"
+
 #if defined(_WIN32)
 #if !defined(NOMINMAX)
 #define NOMINMAX
